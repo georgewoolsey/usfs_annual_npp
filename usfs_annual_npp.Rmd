@@ -1,0 +1,201 @@
+---
+title: "Tracking Net Primary Production (NPP) in US National Forests over a 35-year period"
+author: "George Woolsey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), 'index.html')) })
+---
+
+```{r setup, include=FALSE, warning=F, message=F}
+library(tidyverse)
+library(lubridate)
+library(readxl)
+library(RColorBrewer)
+library(scales)
+library(ggrepel)
+library(viridis)
+
+```
+
+
+# Google Earth Engine Process and Data
+
+The data used in this report was generated using [this code on Google Earth Engine](https://code.earthengine.google.com/197eaa90cb35de4994bae3cd862da822). The Landsat Net Primary Production (NPP) CONUS [dataset](https://doi.org/10.1002/rse2.74) was used to calculate annual total NPP for each United States Forest Service (USFS) National Forest in the western United States between 1986 and 2020. The Landsat Net Primary Production (NPP) CONUS dataset estimates NPP using Landsat Surface Reflectance at 30m spatial resolution. NPP is the amount of carbon captured by plants in an ecosystem, after accounting for losses due to respiration.
+
+## NPP Data Processing
+
+This analysis utilized annual estimates of NPP at 30m spatial resolution. Each 30m pixel within the bounds of each USFS National Forest were summed over the entire area of each forest for each year. This resulted in a single annual measure of total NPP for each national forest.
+
+## USFS Regions
+
+Only USFS regions in the western US, excluding the Pacific Northwest, were utilized in this analysis which included: Regions 1, 2, 3, 4, and 5 (see map below).
+
+![](https://www.researchgate.net/profile/Christopher-Woodall-2/publication/228672943/figure/fig1/AS:301894162501634@1448988585910/Map-of-USDA-Forest-Service-National-Forest-System-regions.png)
+
+# Objective
+
+The objective of this research is to identify how NPP has changed over time in different USFS National Forests using data covering a 35-year period from 1986 to 2020. NPP is the amount of carbon captured by plants in an ecosystem, after accounting for losses due to respiration. It has been shown that rising atmospheric CO2 during the era of rising emissions has been opposed by increased photosynthesis at the global scale [(Denning 2019)](https://www.annualreviews.org/doi/pdf/10.1146/annurev-earth-032320-092010?casa_token=gGGx0JeUV04AAAAA:7CfzYJHR6SXSnvFbkcAAWq9Me4G9ZZFHkzymlBUIWjCOVy9KCGL9PahQIb5jY6cdDnvKih_HDrjQUA). Processes that have been used to explain this unexpected result include CO2 fertilization of plants, enhanced nutrient availability, and recovery of forests from previous disturbances. However, warmer and drier conditions associated with climate change facilitate fire, drought and insect disturbances and future changes in disturbance are likely to be especially pronounced in coniferous forests characteristic of western US forests [(Seidl et al. 2017)](https://www.nature.com/articles/nclimate3303).
+
+# Analysis
+
+## Import csv files exported by GEE
+
+```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
+
+# import csv
+  dta_full <- read.csv("data/usfs_annual_npp.csv") %>% 
+  mutate_if(is.factor, as.character) %>% 
+  rename_with(~ tolower(.x)) %>% 
+  mutate(
+    npp_billions = sum / 1000000000
+    , area_sq_km = gis_acres / 247
+    , npp_millions_per_sq_km = (sum / 1000000) / area_sq_km
+    , year_id = as.integer(substr(system.index, 1, 4))
+    , name_short = str_trim(gsub(" and ", " & ", gsub("National Forest", "", gsub("National Forests", "", commonname))))
+    , region_lab = paste0("R", as.character(region))
+  ) %>% 
+  select(-c(system.index, sum)) %>% 
+  # keep only western US
+  filter(region %in% c(1:5))
+  
+dta_yrs <- seq(min(dta_full$year_id), max(dta_full$year_id), by=2)
+
+# create summary variables
+dta_full <- dta_full %>% 
+  arrange(region, commonname, cnid, year_id) %>% 
+  group_by(cnid) %>% 
+  mutate(
+    npp_change = npp_billions - lag(npp_billions, n=1)
+    , npp_change_pct =  npp_change / lag(npp_billions, n=1)
+    , npp_change_first = npp_billions - first(npp_billions)
+    , npp_change_first_pct = npp_change_first / first(npp_billions)
+    , final_npp_change_pct = last(npp_change_first_pct)
+    , last_name_short = ifelse(row_number()==n(), name_short, "")
+  )
+
+```
+
+## Distribution of Annual NPP
+
+```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
+# histogram with density
+hist_info <- with(dta_full
+  , hist(npp_millions_per_sq_km, plot = FALSE)
+)
+hist_info$density <- hist_info$counts / sum(hist_info$counts) * 100
+plot(hist_info
+    , freq = FALSE
+    , main = "Distribution of Annual NPP in Western US National Forests 1986-2020"
+    , xlab = "NPP (millions) per sq. km"
+    , ylab = "Density (%)"
+    , col="cadetblue"
+)
+
+```
+
+## Annual NPP over time
+
+```{r, warning=F, message=F, results='hide', fig.width = 10, fig.height = 5}
+# NPP over time 
+ggplot(dta_full, aes(x = year_id, y = npp_millions_per_sq_km)) +
+  geom_boxplot(aes(group = cut_width(year_id, 1)), show.legend = FALSE) +
+  geom_point(aes(color = region_lab), alpha=0.7, size = 0.9) + 
+  scale_x_continuous(limits = c(min(dta_yrs)-0.5, max(dta_yrs)+0.5), breaks = dta_yrs) +
+  # scale_y_continuous(labels = label_percent()) +
+  labs(
+      title = "Annual NPP Over Time in Western US National Forests"
+    ) +
+  ylab("NPP (millions) per sq. km") +
+  xlab("") +
+  scale_color_viridis(discrete = TRUE, option = "viridis") +
+  theme_bw() +
+  theme(
+    legend.position="top"
+    , legend.box = "horizontal"
+    , legend.title = element_blank()
+    , axis.text.x = element_text(size = 13, angle = 90)
+    , axis.text.y = element_text(size = 13)
+  ) + 
+  guides(colour = guide_legend(override.aes = list(size=7, alpha = 0.9)))
+
+```
+
+
+## Change in NPP first to last year
+
+On average, the NPP in national forests included in this analysis decreased by `r round(mean((dta_full %>% filter(year_id == max(dta_full$year_id)))$npp_change_first_pct)*100,1)`% from 1986 to 2020. Of the `r length(unique(dta_full$cnid))` national forests included in this analysis, `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid))` forests) had lower NPP in 2020 than in 1986. Reductions in NPP were most severe in Region 3 and Region 5. In Region 3, `r length(unique((dta_full %>% dplyr::filter(region == 3 & npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 3 & year_id == max(dta_full$year_id)))$cnid))` national forests lower NPP in 2020 than in 1986. In Region 5, `r length(unique((dta_full %>% dplyr::filter(region == 5 & npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 5 & year_id == max(dta_full$year_id)))$cnid))` national forests lower NPP in 2020 than in 1986. At the other end of the spectrum, `r length(unique((dta_full %>% dplyr::filter(region == 1 & npp_change_first_pct > 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 1 & year_id == max(dta_full$year_id)))$cnid))` national forests in Region 1 had higher NPP in 2020 than in 1986 while `r length(unique((dta_full %>% dplyr::filter(region == 2 & npp_change_first_pct > 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 2 & year_id == max(dta_full$year_id)))$cnid))` national forests in Region 2 and `r length(unique((dta_full %>% dplyr::filter(region == 4 & npp_change_first_pct > 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 4 & year_id == max(dta_full$year_id)))$cnid))` national forests in Region 4 had increases in NPP over that timespan.
+
+```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 12}
+# bar plot by national forest
+ggplot(dta_full %>% filter(year_id == max(dta_full$year_id)), aes(x=npp_change_first_pct , y = reorder(name_short, -npp_change_first_pct), fill = region_lab)) +
+  geom_vline(xintercept = mean(dta_full$final_npp_change_pct), color="gray", linetype="dashed") +
+  geom_col(alpha=0.9, width = 0.6) + 
+  geom_text(aes(label = scales::percent(npp_change_first_pct, accuracy = 1L)), colour = "black", angle = 0, size = 3, hjust = "top") +
+  scale_x_continuous(labels = label_percent()) +
+  labs(
+      title = "Change in NPP from 1986 to 2020"
+    ) +
+  ylab("") +
+  xlab("% Change NPP") +
+  scale_fill_viridis(discrete = TRUE, option = "viridis") +
+  theme_bw() +
+  theme(
+    legend.position="top"
+    , legend.box = "horizontal"
+    , legend.title = element_blank()
+    , axis.text.y = element_text(size = 9)
+    , axis.text.x = element_text(size = 11, angle = 0)
+  ) + 
+  guides(colour = guide_legend(override.aes = list(size=5, alpha = 0.9)))
+
+```
+
+## Plot changes in NPP over time
+
+Of the `r length(unique(dta_full$cnid))` national forests included in this analysis, `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid))` forests) had lower NPP in 1996 than in 1986. However, by 2016 only `r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid))` forests (`r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`%) had lower NPP than the first year of data in 1986.
+
+```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
+# line plot of % change from first
+my_line_graph <- function(rgn){
+  #generate title
+  my_title <- paste0("R", as.character(rgn), " Change in Annual NPP ", as.character(min(dta_yrs)), "-" , as.character(max(dta_yrs)))
+  #plot
+  (  
+  ggplot(dta_full %>% filter(region == rgn), aes(x = year_id, y = npp_change_first_pct, color = as.factor(final_npp_change_pct))) +
+    geom_hline(yintercept=0, linetype="dashed", color = "gray", size=0.8) +
+    geom_line(alpha=0.8, size = 0.8) + 
+    geom_point(alpha=0.8, size = 0.8) + 
+    geom_text_repel(aes(label = last_name_short), hjust=0.7, size=3, color="black") +
+    scale_x_continuous(limits = c(min(dta_yrs), max(dta_yrs)+4 ), breaks = dta_yrs) +
+    scale_y_continuous(labels = label_percent()) +
+    labs(
+        title = my_title
+        # , subtitle = "Swamp Angel Study Plot and Senator Beck Study Plot"
+      ) +
+    ylab("% Change NPP from start") +
+    xlab("") +
+    # scale_color_distiller(palette = "Spectral") +
+    scale_color_viridis(discrete = TRUE, direction = -1, option = "cividis") +
+    theme_bw() +
+    theme(
+      legend.position="none"
+      , axis.text.x = element_text(size = 13, angle = 90)
+      , axis.text.y = element_text(size = 13)
+    )
+  )
+}
+
+# plot with loop to create a plot for each year
+my_rgn <- unique(dta_full$region)
+for (i in 1:length(my_rgn)) {
+  print( my_line_graph(my_rgn[i]) )
+}
+
+```
+
