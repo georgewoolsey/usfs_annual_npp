@@ -46,6 +46,8 @@ The objective of this research is to identify how NPP has changed over time in d
 
 ## Import csv files exported by GEE
 
+*note, click on the "Code" button to the right to expand the code used in this analysis.
+
 ```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
 
 # import csv
@@ -83,6 +85,8 @@ dta_full <- dta_full %>%
 
 ## Distribution of Annual NPP
 
+Annual NPP (millions) per sq. km in national forests of the western US between 1986 and 2020 is relatively normal in distribution.
+
 ```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
 # histogram with density
 hist_info <- with(dta_full
@@ -100,6 +104,8 @@ plot(hist_info
 ```
 
 ## Annual NPP over time
+
+There is no overall trend in NPP over time in national forests of the western US. Rather, changes in NPP are cyclically driven by changes in region climate trends with significant reductions in drought years. Overall, there was a marginal decrease in NPP in the national forests included in this analysis between 1986 and 2020.
 
 ```{r, warning=F, message=F, results='hide', fig.width = 10, fig.height = 5}
 # NPP over time 
@@ -156,7 +162,7 @@ ggplot(dta_full %>% filter(year_id == max(dta_full$year_id)), aes(x=npp_change_f
 
 ```
 
-## Plot changes in NPP over time
+## Forest-level trends in NPP
 
 Of the `r length(unique(dta_full$cnid))` national forests included in this analysis, `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid))` forests) had lower NPP in 1996 than in 1986. However, by 2016 only `r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid))` forests (`r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`%) had lower NPP than the first year of data in 1986.
 
