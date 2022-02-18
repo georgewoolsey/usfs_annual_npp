@@ -87,7 +87,7 @@ dta_full <- dta_full %>%
 
 Annual NPP (millions) per sq. km in national forests of the western US between 1986 and 2020 is relatively normal in distribution.
 
-```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
+```{r, warning=F, message=F, results='hide', fig.width = 9, fig.height = 5}
 # histogram with density
 hist_info <- with(dta_full
   , hist(npp_millions_per_sq_km, plot = FALSE)
@@ -107,13 +107,12 @@ plot(hist_info
 
 There is no overall trend in NPP over time in national forests of the western US. Rather, changes in NPP are cyclically driven by changes in region climate trends with significant reductions in drought years. Overall, there was a marginal decrease in NPP in the national forests included in this analysis between 1986 and 2020.
 
-```{r, warning=F, message=F, results='hide', fig.width = 10, fig.height = 5}
+```{r, warning=F, message=F, results='hide', fig.width = 10, fig.height = 6}
 # NPP over time 
 ggplot(dta_full, aes(x = year_id, y = npp_millions_per_sq_km)) +
   geom_boxplot(aes(group = cut_width(year_id, 1)), show.legend = FALSE) +
   geom_point(aes(color = region_lab), alpha=0.7, size = 0.9) + 
   scale_x_continuous(limits = c(min(dta_yrs)-0.5, max(dta_yrs)+0.5), breaks = dta_yrs) +
-  # scale_y_continuous(labels = label_percent()) +
   labs(
       title = "Annual NPP Over Time in Western US National Forests"
     ) +
@@ -137,7 +136,7 @@ ggplot(dta_full, aes(x = year_id, y = npp_millions_per_sq_km)) +
 
 On average, the NPP in national forests included in this analysis decreased by `r round(mean((dta_full %>% filter(year_id == max(dta_full$year_id)))$npp_change_first_pct)*100,1)`% from 1986 to 2020. Of the `r length(unique(dta_full$cnid))` national forests included in this analysis, `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid))` forests) had lower NPP in 2020 than in 1986. Reductions in NPP were most severe in Region 3 and Region 5. In Region 3, `r length(unique((dta_full %>% dplyr::filter(region == 3 & npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 3 & year_id == max(dta_full$year_id)))$cnid))` national forests lower NPP in 2020 than in 1986. In Region 5, `r length(unique((dta_full %>% dplyr::filter(region == 5 & npp_change_first_pct < 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 5 & year_id == max(dta_full$year_id)))$cnid))` national forests lower NPP in 2020 than in 1986. At the other end of the spectrum, `r length(unique((dta_full %>% dplyr::filter(region == 1 & npp_change_first_pct > 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 1 & year_id == max(dta_full$year_id)))$cnid))` national forests in Region 1 had higher NPP in 2020 than in 1986 while `r length(unique((dta_full %>% dplyr::filter(region == 2 & npp_change_first_pct > 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 2 & year_id == max(dta_full$year_id)))$cnid))` national forests in Region 2 and `r length(unique((dta_full %>% dplyr::filter(region == 4 & npp_change_first_pct > 0 & year_id == max(dta_full$year_id)))$cnid))` out of `r length(unique((dta_full %>% dplyr::filter(region == 4 & year_id == max(dta_full$year_id)))$cnid))` national forests in Region 4 had increases in NPP over that timespan.
 
-```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 12}
+```{r, warning=F, message=F, results='hide', fig.width = 9, fig.height = 12}
 # bar plot by national forest
 ggplot(dta_full %>% filter(year_id == max(dta_full$year_id)), aes(x=npp_change_first_pct , y = reorder(name_short, -npp_change_first_pct), fill = region_lab)) +
   geom_vline(xintercept = mean(dta_full$final_npp_change_pct), color="gray", linetype="dashed") +
@@ -164,9 +163,9 @@ ggplot(dta_full %>% filter(year_id == max(dta_full$year_id)), aes(x=npp_change_f
 
 ## Forest-level trends in NPP
 
-Of the `r length(unique(dta_full$cnid))` national forests included in this analysis, `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid))` forests) had lower NPP in 1996 than in 1986. However, by 2016 only `r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid))` forests (`r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`%) had lower NPP than the first year of data in 1986.
+Of the `r length(unique(dta_full$cnid))` national forests included in this analysis, `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 1996))$cnid))` forests) had lower NPP in 1996 than in 1986. There was another significant decrease in NPP in 2002 with `r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2002))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`% of forests (`r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2002))$cnid))` forests) at lower levels than in 1986. The year 2012 saw another significant drop in the NPP of national forests in the western US with `r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2012))$cnid))` forests (`r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2012))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`%) exhibiting a decrease. However, by 2016 only `r length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid))` forests (`r round(length(unique((dta_full %>% dplyr::filter(npp_change_first_pct < 0 & year_id == 2016))$cnid)) / length(unique(dta_full$cnid)) , 2) * 100`%) had lower NPP than the first year of data in 1986.
 
-```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
+```{r, warning=F, message=F, results='hide', fig.width = 9, fig.height = 5}
 # line plot of % change from first
 my_line_graph <- function(rgn){
   #generate title
