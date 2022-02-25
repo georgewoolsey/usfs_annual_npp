@@ -49,6 +49,7 @@ The objective of this research is to identify how NPP has changed over time in d
 *note, click on the "Code" button to the right to expand the code used in this analysis.
 
 ```{r, warning=F, message=F, results='hide', fig.width = 8, fig.height = 5}
+# Note: Total production is the cumulative amount of carbon allocated to plant tissue annually over a given area, often measured in Tg (10^12) of carbon, while average productivity is the mean rate of allocation over a given area (kg C/m2/yr )(https://esajournals.onlinelibrary.wiley.com/doi/pdf/10.1002/eap.1862).
 
 # import csv
   dta_full <- read.csv("data/usfs_annual_npp.csv") %>% 
